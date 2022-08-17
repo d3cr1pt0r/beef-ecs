@@ -1,0 +1,5 @@
+FileVersion = 1
+Projects = {Anomaly = {Path = "."}, raylib-beef = "*"}
+
+[Workspace]
+StartupProject = "Anomaly"
