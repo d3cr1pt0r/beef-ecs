@@ -35,7 +35,7 @@ namespace Anomaly.Features.Player.Systems
 				int32 posX = (int32) position.Value.x;
 				int32 posY = (int32) position.Value.y;
 
-				Raylib.DrawRectanglePro(.(posX, posY, 10, 10), .(0,0), rotation.Value, color);
+				Raylib.DrawRectanglePro(.(posX, posY, 10, 10), .(5,5), rotation.Value, color);
 			});
 		}
 	}
