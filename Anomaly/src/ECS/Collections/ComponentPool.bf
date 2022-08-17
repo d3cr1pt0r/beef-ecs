@@ -7,11 +7,11 @@ namespace Anomaly.ECS.Collections
 		readonly SimpleList<int> Entities { get; }
 
 		bool Contains(int id);
-		void Remove(int id);
+		int Remove(int id);
 		void Clear();
 	}
 
-	public class ComponentPool<T> : IComponentPool
+	public class ComponentPool<T> : IComponentPool where T : struct, Component
 	{
 		private SparseSet<T> components;
 
@@ -43,9 +43,10 @@ namespace Anomaly.ECS.Collections
 			return components.Contains(id);
 		}
 
-		public void Remove(int id)
+		public int Remove(int id)
 		{
 			components.Remove(id);
+			return ComponentMeta<T>.Id;
 		}
 
 		public void Clear()

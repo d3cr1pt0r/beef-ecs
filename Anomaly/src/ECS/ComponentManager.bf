@@ -3,14 +3,17 @@ using Anomaly.ECS.Collections;
 
 namespace Anomaly.ECS
 {
+	typealias ComponentId = int;
+	typealias ComponentEvent = Event<delegate void(Entity, ComponentId)>;
+
 	public static class ComponentIdCounter
 	{
-		public static int Counter = 0;
+		public static ComponentId Counter = 0;
 	}
 
 	public static class ComponentMeta<T> where T : struct, Component
 	{
-		public static int Id { get; private set; }
+		public static ComponentId Id { get; private set; }
 
 		static this()
 		{
@@ -21,6 +24,9 @@ namespace Anomaly.ECS
 	public class ComponentManager
 	{
 		private SparseSet<IComponentPool> componentsPool;
+
+		public ComponentEvent ComponentAddedEvent;
+		public ComponentEvent ComponentRemovedEvent;
 
 		public readonly SparseSet<IComponentPool> ComponentsPool => componentsPool;
 
@@ -50,12 +56,16 @@ namespace Anomaly.ECS
 
 			System.Runtime.Assert(!pool.Contains(entity), scope $"Component {typeof(T)} already added to entity {entity}!");
 
-			return ref pool.Add(entity, component);
+			var addedComponent = ref pool.Add(entity, component);
+			ComponentAddedEvent.Invoke(entity, ComponentMeta<T>.Id);
+
+			return ref addedComponent;
 		}
 
 		public void RemoveComponent<T>(Entity entity) where T : Component
 		{
 			GetComponentPool<T>().Remove(entity);
+			ComponentAddedEvent.Invoke(entity, ComponentMeta<T>.Id);
 		}
 
 		public ref T GetComponent<T>(Entity entity) where T : Component
@@ -69,21 +79,24 @@ namespace Anomaly.ECS
 			return HasComponent(entity, ComponentMeta<T>.Id);
 		}
 
-		public bool HasComponent(Entity entity, int componentId)
+		public bool HasComponent(Entity entity, ComponentId component)
 		{
-			return componentsPool[componentId].Contains(entity);
+			return componentsPool[component].Contains(entity);
 		}
 
 		public void EntityDestroyed(Entity entity)
 		{
 			var componentsPoolValues = componentsPool.Values;
 			for(int i=0; i<componentsPoolValues.Count; i++)
-				componentsPoolValues[i].Remove(entity);
+			{
+				var removedComponent = componentsPoolValues[i].Remove(entity);
+				ComponentRemovedEvent.Invoke(entity, removedComponent);
+			}
 		}
 
-		public SimpleList<int> GetEntitiesWithComponent(int componentId)
+		public SimpleList<int> GetEntitiesWithComponent(ComponentId component)
 		{
-			return GetComponentPool(componentId).Entities;
+			return GetComponentPool(component).Entities;
 		}
 
 		private ComponentPool<T> GetComponentPool<T>() where T : Component
@@ -95,11 +108,11 @@ namespace Anomaly.ECS
 			return (ComponentPool<T>) componentsPool[componentId];
 		}
 
-		private IComponentPool GetComponentPool(int componentId)
+		private IComponentPool GetComponentPool(ComponentId component)
 		{
-			System.Runtime.Assert(componentsPool.Contains(componentId), scope $"Component with id={componentId} not registered!");
+			System.Runtime.Assert(componentsPool.Contains(component), scope $"Component with id={component} not registered!");
 
-			return componentsPool[componentId];
+			return componentsPool[component];
 		}
 	}
 }

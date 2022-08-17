@@ -4,6 +4,8 @@ using Anomaly.ECS.Collections;
 
 namespace Anomaly.ECS
 {
+	typealias ComponentEventDelegate = delegate void(Entity, ComponentId);
+
 	public static class CacheSettings
 	{
 		public const int MAX_ENTITIES = 100000;
@@ -17,7 +19,8 @@ namespace Anomaly.ECS
 		private ComponentManager componentManager;
 		private SystemManager systemManager;
 
-		private Dictionary<String, List<Entity>> queryCache;
+		private Dictionary<ComponentId, List<ComponentEventDelegate>> componentAddedEventMap;
+		private Dictionary<ComponentId, List<ComponentEventDelegate>> componentRemovedEventMap;
 
 		public int EntityCount => entityManager.Entities.Count;
 
@@ -27,21 +30,37 @@ namespace Anomaly.ECS
 			componentManager = new ComponentManager();
 			systemManager = new SystemManager();
 
-			queryCache = new Dictionary<String, List<Entity>>();
+			componentManager.ComponentAddedEvent.Add(new (e, c) => OnComponentAddedEvent(e, c));
+			componentManager.ComponentRemovedEvent.Add(new (e, c) => OnComponentRemovedEvent(e, c));
+
+			componentAddedEventMap = new Dictionary<ComponentId, List<ComponentEventDelegate>>();
+			componentRemovedEventMap = new Dictionary<ComponentId, List<ComponentEventDelegate>>();
 		}
 
 		public ~this()
 		{
+			componentManager.ComponentAddedEvent.Dispose();
+			componentManager.ComponentRemovedEvent.Dispose();
+
 			delete entityManager;
 			delete componentManager;
 			delete systemManager;
 
-			for(var entry in queryCache)
+			for(var entry in componentAddedEventMap)
 			{
-				delete entry.key;
+				for(var d in entry.value)
+					delete d;
 				delete entry.value;
 			}
-			delete queryCache;
+			for(var entry in componentRemovedEventMap)
+			{
+				for(var d in entry.value)
+					delete d;
+				delete entry.value;
+			}
+
+			delete componentAddedEventMap;
+			delete componentRemovedEventMap;
 		}
 
 		public Entity CreateEntity()
@@ -55,27 +74,27 @@ namespace Anomaly.ECS
 			entityManager.DestroyEntity(entity);
 		}
 
-		public void RegisterComponent<T>() where T : Component
+		public void RegisterComponent<T>() where T : struct, Component
 		{
 			componentManager.RegisterComponent<T>();
 		}
 
-		public ref T AddComponent<T>(Entity entity, T component) where T : Component
+		public ref T AddComponent<T>(Entity entity, T component) where T : struct, Component
 		{
 			return ref componentManager.AddComponent(entity, component);
 		}
 
-		public void RemoveComponent<T>(Entity entity) where T : Component
+		public void RemoveComponent<T>(Entity entity) where T : struct, Component
 		{
 			componentManager.RemoveComponent<T>(entity);
 		}
 
-		public ref T GetComponent<T>(Entity entity) where T : Component
+		public ref T GetComponent<T>(Entity entity) where T : struct, Component
 		{
 			return ref componentManager.GetComponent<T>(entity);
 		}
 
-		public bool HasComponent<T>(Entity entity) where T : Component
+		public bool HasComponent<T>(Entity entity) where T : struct, Component
 		{
 			return componentManager.HasComponent<T>(entity);
 		}
@@ -85,22 +104,50 @@ namespace Anomaly.ECS
 			systemManager.AddSystem(system);
 		}
 
+		public void RegisterToComponentAddedEvent<T>(ComponentEventDelegate eventDelegate) where T : struct, Component
+		{
+			List<ComponentEventDelegate> delegates;
+			let componentId = ComponentMeta<T>.Id;
+			if(!componentAddedEventMap.TryGetValue(componentId, out delegates))
+			{
+				delegates = new List<ComponentEventDelegate>();
+				componentAddedEventMap.Add(ComponentMeta<T>.Id, delegates);
+			}
+
+			delegates.Add(eventDelegate);
+		}
+
+		public void RegisterToComponentRemovedEvent<T>(ComponentEventDelegate eventDelegate) where T : struct, Component
+		{
+			List<ComponentEventDelegate> delegates;
+			let componentId = ComponentMeta<T>.Id;
+			if(!componentRemovedEventMap.TryGetValue(componentId, out delegates))
+			{
+				delegates = new List<ComponentEventDelegate>();
+				componentRemovedEventMap.Add(ComponentMeta<T>.Id, delegates);
+			}
+
+			delegates.Add(eventDelegate);
+		}
+
+		public void UnregisterFromComponentAddedEvent<T>(ComponentEventDelegate eventDelegate) where T : struct, Component
+		{
+			List<ComponentEventDelegate> delegates;
+			if(componentAddedEventMap.TryGetValue(ComponentMeta<T>.Id, out delegates))
+				delegates.Remove(eventDelegate);
+		}
+
+		public void UnregisterFromComponentRemovedEvent<T>(ComponentEventDelegate eventDelegate) where T : struct, Component
+		{
+			List<ComponentEventDelegate> delegates;
+			if(componentRemovedEventMap.TryGetValue(ComponentMeta<T>.Id, out delegates))
+				delegates.Remove(eventDelegate);
+		}
+
 		public void Query(int[] components, delegate void(Entity) entity)
 		{
 			if (components.Count == 0)
 				return;
-
-			/*var cs = scope String(components.Count);
-			for(var value in components)
-				cs.Append(value);
-
-			List<Entity> cachedEntities;
-			if (queryCache.TryGetValue(cs, out cachedEntities))
-			{
-				for(var e in cachedEntities)
-					entity(e);
-				return;
-			}*/
 
 			// Sort components so that the first component is the one with the least entities
 			// This will speed up the query as we will loop through the least amount of entities necessary
@@ -110,8 +157,6 @@ namespace Anomaly.ECS
 			componentEntitiesList.Sort(scope (lhs, rhs) => {return lhs.0.Count > rhs.0.Count ? 1 : -1;});
 
 			var entities = componentEntitiesList[0].0;
-
-			/*cachedEntities = new List<Entity>(entities.Count);*/
 
 			for(var i=0; i<entities.Count; i++)
 			{
@@ -129,13 +174,9 @@ namespace Anomaly.ECS
 
 				if (match)
 				{
-					/*cachedEntities.Add(e);*/
 					entity(e);
 				}
 			}
-
-			/*var csc = new String(cs);
-			queryCache.Add(csc, cachedEntities);*/
 		}
 
 		public void Query(int[] includeComponents, int[] excludeComponents, delegate void(Entity) entity)
@@ -186,6 +227,22 @@ namespace Anomaly.ECS
 		public void Tick(float deltaTime)
 		{
 			systemManager.Tick(deltaTime);
+		}
+
+		private void OnComponentAddedEvent(Entity entity, ComponentId component)
+		{
+			List<ComponentEventDelegate> delegates;
+			if(componentAddedEventMap.TryGetValue(component, out delegates))
+				for(var d in delegates)
+					d.Invoke(entity, component);
+		}
+
+		private void OnComponentRemovedEvent(Entity entity, ComponentId component)
+		{
+			List<ComponentEventDelegate> delegates;
+			if(componentRemovedEventMap.TryGetValue(component, out delegates))
+				for(var d in delegates)
+					d.Invoke(entity, component);
 		}
 	}
 }
