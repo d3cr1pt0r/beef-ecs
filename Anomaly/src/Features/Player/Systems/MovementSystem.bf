@@ -24,11 +24,8 @@ namespace Anomaly.Features.Player.Systems
 				var position = ref world.GetComponent<PositionComponent>(entity);
 				var velocity = ref world.GetComponent<VelocityComponent>(entity);
 
-				velocity.X -= velocity.X * 2f * deltaTime;
-				velocity.Y -= velocity.Y * 2f * deltaTime;
-
-				position.X += velocity.X * deltaTime;
-				position.Y += velocity.Y * deltaTime;
+				velocity.Value -= velocity.Value * (2f * deltaTime);
+				position.Value += velocity.Value * deltaTime;
 			});
 		}
 	}

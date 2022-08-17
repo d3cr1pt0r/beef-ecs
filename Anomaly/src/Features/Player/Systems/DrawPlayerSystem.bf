@@ -14,7 +14,7 @@ namespace Anomaly.Features.Player.Systems
 
 		public this(World world) : base(world)
 		{
-
+			
 		}
 
 		public override void Tick(float deltaTime)
@@ -29,11 +29,11 @@ namespace Anomaly.Features.Player.Systems
 				var rotation = ref world.GetComponent<RotationComponent>(entity);
 				var velocity = ref world.GetComponent<VelocityComponent>(entity);
 
-				float velocityLengthSqr = Vector2(velocity.X, velocity.Y).LengthSqr();
+				float velocityLengthSqr = velocity.Value.LengthSqr();
 				var color = Color.LerpBlend(.GREEN, .RED, velocityLengthSqr / maxVelocity);
 
-				int32 posX = (int32) position.X;
-				int32 posY = (int32) position.Y;
+				int32 posX = (int32) position.Value.x;
+				int32 posY = (int32) position.Value.y;
 
 				Raylib.DrawRectanglePro(.(posX, posY, 10, 10), .(0,0), rotation.Value, color);
 			});

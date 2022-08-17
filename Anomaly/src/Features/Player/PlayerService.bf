@@ -15,8 +15,8 @@ namespace Anomaly.Features.Player
 
 			var entity = world.CreateEntity();
 			world.AddComponent(entity, PlayerComponent() {Color = color, InitialPosition = .(posX, posY)});
-			world.AddComponent(entity, PositionComponent() {X = posX, Y = posY});
-			world.AddComponent(entity, VelocityComponent() {X = 0, Y = 0});
+			world.AddComponent(entity, PositionComponent() { Value = .(posX, posY) });
+			world.AddComponent(entity, VelocityComponent() { Value = .(0, 0) });
 			world.AddComponent(entity, RotationComponent() {Value = random.Next(0, 360)});
 
 			return entity;

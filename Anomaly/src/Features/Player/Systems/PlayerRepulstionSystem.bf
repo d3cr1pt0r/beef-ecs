@@ -10,6 +10,7 @@ namespace Anomaly.Features.Player.Systems
 	{
 		private const float maxDist = 1000;
 		private const float force = 2f;
+		private const float oneOverMaxDist = 1f / maxDist;
 
 		public this(World world) : base(world)
 		{
@@ -31,13 +32,12 @@ namespace Anomaly.Features.Player.Systems
 				var position = ref world.GetComponent<PositionComponent>(entity);
 				var velocity = ref world.GetComponent<VelocityComponent>(entity);
 
-				var direction = Vector2(position.X, position.Y) - mousePosition;
+				var direction = position.Value - mousePosition;
 				float distance = System.Math.Min((direction).LengthSqr(), maxDist);
-				float influence = ((maxDist - distance) / maxDist) * force;
+				float influence = ((maxDist - distance) * oneOverMaxDist) * force;
 
 				direction.Normalize(default);
-				velocity.X += direction.x * influence;
-				velocity.Y += direction.y * influence;
+				velocity.Value += direction * influence;
 			});
 		}
 	}

@@ -29,14 +29,14 @@ namespace Anomaly
 			world.RegisterComponent<RotationComponent>();
 
 			var random = scope Random();
-			for(int i=0; i<100000; i++)
+			for(int i=0; i<10; i++)
 				PlayerService.CreatePlayerEntity(world, random, 100, screenWidth - 100, 100, screenHeight - 100);
 
 			world.AddSystem(new MovementSystem(world));
 			world.AddSystem(new PlayerRotationSystem(world));
 			world.AddSystem(new PlayerRepulsionSystem(world));
-			//world.AddSystem(new DrawPlayerSystem(world));
-			//world.AddSystem(new PlayerRespawnSystem(world));
+			world.AddSystem(new DrawPlayerSystem(world));
+			world.AddSystem(new PlayerRespawnSystem(world));
 
 			while (!Raylib.WindowShouldClose())
 			{

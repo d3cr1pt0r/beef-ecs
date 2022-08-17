@@ -33,10 +33,10 @@ namespace Anomaly.Features.Player.Systems
 			{
 				var position = ref world.GetComponent<PositionComponent>(entity);
 
-				if (position.X < 50 ||
-					position.X > screenWidth - 50 ||
-					position.Y < 50 ||
-					position.Y > screenHeight - 50)
+				if (position.Value.x < 50 ||
+					position.Value.x > screenWidth - 50 ||
+					position.Value.y < 50 ||
+					position.Value.y > screenHeight - 50)
 				{
 					world.DestroyEntity(entity);
 
